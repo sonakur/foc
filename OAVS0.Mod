@@ -71,7 +71,7 @@ MODULE OAVS0; (* NW 19.9.93 / 16.9.98 / 23.4.2007*)
 		error*: BOOLEAN;
 		errors: Errors;
 		logErrors: BOOLEAN;
-		f: OIO.File;
+		f*: OIO.File;
 
 		ch: CHAR;  (*last character read*)
 		id: Ident;  (*not exported*)
@@ -231,7 +231,7 @@ MODULE OAVS0; (* NW 19.9.93 / 16.9.98 / 23.4.2007*)
 			buf: ARRAY 10 OF CHAR;  
 	BEGIN 
 		OIO.WriteString("0x");
-		j :=SHORT( w);(* SK why??? *)
+		j :=SHORT( w);(* why??? *)
 		FOR i := j - 1 TO 0 BY -1 DO 
 			buf[i] := CHR( x MOD 10H + 48 );  
 			IF buf[i] > "9" THEN buf[i] := CHR( ORD( buf[i] ) - 48 + 65 - 10 ) END;  
