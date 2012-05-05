@@ -55,6 +55,7 @@ PROCEDURE OpenFile* (name :ARRAY OF CHAR; VAR f: File):BOOLEAN;
 			Out.String("!"); Out.Ln;
 			RETURN FALSE;
 		END;
+		(*Out.String("File opened:"); Out.String(name); Out.Ln(); *)
 		RETURN TRUE;
 	END OpenFile; 
 
@@ -170,11 +171,37 @@ PROCEDURE CloseFile* (VAR f : File);
 		f.filedesc.Close();
 END CloseFile;
 
+PROCEDURE CloseBinFile* (VAR f : BinFile); 
+	BEGIN
+		f.filedesc.Close();
+END CloseBinFile;
+
 PROCEDURE WriteSet* (VAR f: File; s: SET);
 	BEGIN
 		f.w.WriteSet(s);		
 	END WriteSet;
 
+PROCEDURE FWriteString*(VAR f: File; str: ARRAY OF CHAR);
+	BEGIN
+		f.w.WriteString(str);
+	END FWriteString;
+
+PROCEDURE FWriteLn*(VAR f: File);
+	BEGIN
+		f.w.WriteLn()
+	END FWriteLn;
+
+PROCEDURE FWriteLInt*(VAR f: File; n: LONGINT); (* write in file *)
+	BEGIN
+		f.w.WriteLInt(n,0);
+	END FWriteLInt;
+
+
+(*PROCEDURE WriteBinLn*(f: BinFile);
+	BEGIN
+		f.w.WriteLn()
+	END WriteBinLn;
+*)
 PROCEDURE WriteString*(str: ARRAY OF CHAR);
 	BEGIN
 		Out.String(str);
@@ -210,9 +237,9 @@ PROCEDURE WriteBinSInt*(VAR f: BinFile; n: SHORTINT); (* write in file *)
 		f.w.WriteSInt(n);
 	END WriteBinSInt;
 
-PROCEDURE WriteLongInt*(int: LONGINT; n: LONGINT);
+PROCEDURE WriteLongInt*(int: LONGINT);
 	BEGIN
-		Out.LongInt(int,n);
+		Out.LongInt(int,0);
 	END WriteLongInt;
 
 PROCEDURE WriteHex*(lint: LONGINT; n: LONGINT);

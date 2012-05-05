@@ -80,7 +80,8 @@ MODULE OAVS0; (* NW 19.9.93 / 16.9.98 / 23.4.2007*)
 		(*R*: AosIO.Reader; W*: AosIO.Writer; *) (* exported for use by OSAG *) 
 		keyTab: ARRAY KTsize OF
 				RECORD sym: INTEGER; id: ARRAY 14 OF CHAR END;
-		str: ARRAY stringTabSize OF LONGINT;
+		str*: ARRAY stringTabSize OF LONGINT;
+		strVal*: ARRAY stringTabSize OF CHAR;
 
 	(** tt, fof >> *)
 	(*------------------------object's procedures-----------*)	
@@ -186,7 +187,7 @@ MODULE OAVS0; (* NW 19.9.93 / 16.9.98 / 23.4.2007*)
 		IF logErrors THEN
 			pos := OIO.Pos(f) - 1;
 			IF (pos > errpos) & (errcnt < 25) THEN
-				OIO.WriteString( "  pos "); OIO.WriteLongInt( pos, 1);
+				OIO.WriteString( "  pos "); OIO.WriteLongInt( pos);
 				OIO.WriteChar( " "); OIO.WriteString( msg);
 				OIO.WriteLn();
 				(* W.Update() ??? *)
@@ -251,19 +252,27 @@ MODULE OAVS0; (* NW 19.9.93 / 16.9.98 / 23.4.2007*)
 		RETURN n
 	END hex;
 
-	PROCEDURE String(VAR sym: INTEGER);  (*stores string in word array*)
+(*	PROCEDURE String(VAR sym: INTEGER);  (*stores string in word array*)
 		VAR buf: LONGINT; i, k: INTEGER; eos: CHAR;
 	BEGIN 
-		eos := ch; 
+		eos:= ch; 
 		OIO.ReadChar(f, ch); 
-		i := strx; ival := i; 
-		k := 0;	buf := 0;
+		i:= strx; 
+		ival := i; 
+		k:= 0;	
+		buf:= 0;
 		WHILE ~(ch = 0X) & (ch # eos) DO
 			IF ch >= " " THEN
 				IF i >= stringTabSize-WS THEN 
 					Mark("string too long"); 
 					i := 0; k := 0 
-				END ;
+				ELSE
+					strVal[k]:= ch;
+					
+					
+					
+				END;
+
 				buf := ASH(ORD(ch), k*8) + buf; 
 				INC(k);
 				IF k = WS THEN 
@@ -277,7 +286,40 @@ MODULE OAVS0; (* NW 19.9.93 / 16.9.98 / 23.4.2007*)
 		IF (i = ival) & (k = 1) THEN sym := char; ival := buf
 		ELSE sym := string; str[i] := buf; slen := (i - ival)*WS + k+1; INC(i); strx := i
 		END
+	END String; *)
+
+PROCEDURE String(VAR sym: INTEGER);
+        VAR i: INTEGER;
+        BEGIN i := 0;
+        LOOP OIO.ReadChar(f,ch);
+        IF ch = 22X THEN EXIT END ;
+                IF ch < " " THEN
+                        Mark("Illegal symbol");
+                        OIO.WriteString ("ch=");
+                        OIO.WriteChar(ch);
+			OIO.WriteLn();
+                        EXIT
+                END ;
+                IF i < stringTabSize-1 THEN
+                        strVal[i] := ch;
+                        INC(i)
+                ELSE
+                        Mark("string too long");
+                        i:= 0
+                END
+         END ;
+	OIO.ReadChar(f, ch);
+  	IF i = 1 THEN 
+		sym := char  
+	ELSE 
+		sym := string; 
+		strVal[i] := 0X
+  	END;
+  	slen := i;
 	END String;
+
+
+
 
 	PROCEDURE Identifier(VAR sym: INTEGER);
 		VAR i, k: INTEGER;
@@ -483,7 +525,6 @@ BEGIN
 	EnterKW(until, "UNTIL");
 	EnterKW(var, "VAR");
 	EnterKW(while, "WHILE");
-	EnterKW(with, "WITH")
-
+	EnterKW(with, "WITH")	
 END OAVS0.
 

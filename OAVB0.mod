@@ -1,5 +1,5 @@
 MODULE OAVB0;
-
+(* *)
 IMPORT OSAS:= OAVS0, OIO;
 
 (*Definition of data types Object and Type, which together form the data structure
@@ -94,7 +94,7 @@ PROCEDURE this*(): Object;  (*return the Object with name OSAS.id*)
   END this;
 
 
-PROCEDURE thisimport*(mod: Object): Object;
+PROCEDURE thisimport*(mod: Object): Object; (*for modules only*)
     VAR obj: Object;
   BEGIN obj := mod.anc; OSAS.CopyId(guard.name);
     WHILE obj.name # guard.name DO obj := obj.next END ;
@@ -102,7 +102,7 @@ PROCEDURE thisimport*(mod: Object): Object;
     RETURN obj
   END thisimport;
 
-  PROCEDURE thisfield*(rec: Type): Object;
+  PROCEDURE thisfield*(rec: Type): Object;(* for rrecord only*)
     VAR fld: Object; name: OSAS.Ident;
   BEGIN OSAS.CopyId(name); fld := rec.dsc;
     WHILE (fld # NIL) & (fld.name # name) DO fld := fld.next END ;
