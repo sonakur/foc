@@ -132,6 +132,95 @@ MODULE OAVG0; (* NW 1.7.97 / 2.5.99 / 24.11.99 / 21.5.2007*)
   (*register management*)
 
 (*------------------------- my functions ------------------------*)
+PROCEDURE AddMemToReg(x: Item; r: LONGINT); 
+	VAR rname: OSAS.Ident;
+	BEGIN
+		Gen.RegName(r, rname);
+		Gen.Add(f);
+		OIO.FWriteString(f, x.label);
+		Gen.WriteComma(f);
+		OIO.FWriteString(f, rname);
+		OIO.FWriteLn(f);
+	END AddMemToReg;
+
+PROCEDURE SubRegWithMem(x: Item; r: LONGINT); 
+	VAR rname: OSAS.Ident;
+	BEGIN
+		Gen.RegName(r, rname);
+		Gen.Sub(f);
+		OIO.FWriteString(f, x.label);
+		Gen.WriteComma(f);
+		OIO.FWriteString(f, rname);
+		OIO.FWriteLn(f);
+	END SubRegWithMem;
+
+PROCEDURE AddConstToReg(a, r: LONGINT); (* r:= r+-a *)
+	VAR rname: OSAS.Ident;
+	BEGIN
+		IF (a >= 0) THEN
+			Gen.Add(f);
+			Gen.Const(f, a);
+		ELSE
+			Gen.Sub(f);
+			Gen.Const(f, -a);
+		END;
+		Gen.WriteComma(f);
+		Gen.RegName(r, rname);
+		OIO.FWriteString(f, rname);
+		OIO.FWriteLn(f);
+	END AddConstToReg;
+
+PROCEDURE SubRegWithConst(a, r: LONGINT); (* r:= r+-a *)
+	VAR rname: OSAS.Ident;
+	BEGIN
+		IF (a >= 0) THEN
+			Gen.Sub(f);
+			Gen.Const(f, a);
+		ELSE
+			Gen.Sub(f);
+			Gen.Const(f, -a);
+		END;
+		Gen.WriteComma(f);
+		Gen.RegName(r, rname);
+		OIO.FWriteString(f, rname);
+		OIO.FWriteLn(f);
+	END SubRegWithConst;
+
+PROCEDURE SubRegWithReg(x, y: LONGINT);
+	VAR xname, yname: OSAS.Ident;
+	BEGIN
+		Gen.RegName(x, xname);
+		Gen.RegName(y, yname);
+		Gen.Sub(f);
+		OIO.FWriteString(f, xname);
+		Gen.WriteComma(f);
+		OIO.FWriteString(f, yname);
+		OIO.FWriteLn(f);
+	END SubRegWithReg;
+
+PROCEDURE AddRegToReg(x, y: LONGINT);
+	VAR xname, yname: OSAS.Ident;
+	BEGIN
+		Gen.RegName(x, xname);
+		Gen.RegName(y, yname);
+		Gen.Add(f);
+		OIO.FWriteString(f, xname);
+		Gen.WriteComma(f);
+		OIO.FWriteString(f, yname);
+		OIO.FWriteLn(f);
+	END AddRegToReg;
+
+PROCEDURE MovRegToReg(x, y: LONGINT);
+	VAR xname, yname: OSAS.Ident;
+	BEGIN
+		Gen.RegName(x, xname);
+		Gen.RegName(y, yname);
+		Gen.Mov(f);
+		OIO.FWriteString(f, xname);
+		Gen.WriteComma(f);
+		OIO.FWriteString(f, yname);
+		OIO.FWriteLn(f);
+	END MovRegToReg;
 
 PROCEDURE MovAddrToReg *(x: Item; offset, size, r1, r2: LONGINT);
 	VAR	rname: OSAS.Ident;
@@ -233,8 +322,9 @@ PROCEDURE MovConstToReg *(const :LONGINT; reg :LONGINT);
 	VAR regName: ARRAY 5 OF CHAR;
 	BEGIN
 		Gen.Mov(f);
-		OIO.FWriteString(f, "$");
-		OIO.FWriteLInt(f, const);
+		(*OIO.FWriteString(f, "$");
+		OIO.FWriteLInt(f, const);*)
+		Gen.Const(f, const);
 		OIO.FWriteString(f, ", ");
 		Gen.RegName(reg, regName);
 		OIO.FWriteString(f,regName);
@@ -377,13 +467,29 @@ PROCEDURE GetReg1(VAR r: LONGINT; x: Item); (*release the registers used by item
    		GetReg(r);
 	END;
   END GetReg1;
-  
-  PROCEDURE GetReg2(VAR r: LONGINT; x, y: Item); (*release the registers used by x, and y and allocate registers for x*)
-  BEGIN
-    RelReg1(x.r, x.type.size);
-    RelReg1(y.r, y.type.size);
-    _GetReg(r, x.type.size, 4)
-  END GetReg2;
+
+PROCEDURE GetReg2(VAR r: LONGINT; x, y: Item); (*release the registers used by x, and y and allocate registers for x*)
+	VAR	is_real_exp:BOOLEAN;
+	BEGIN
+		is_real_exp:= FALSE;
+		IF (x.type.form = OSAB.Real) THEN
+  			RelRealReg(x.r);
+			is_real_exp:= TRUE;
+		ELSE
+			RelReg(x.r);
+		END;
+		IF (y.type.form = OSAB.Real) THEN
+  			RelRealReg(y.r);
+			is_real_exp:= TRUE;
+		ELSE
+			RelReg(y.r);
+		END;
+		IF (is_real_exp) THEN
+			GetRealReg(r);
+		ELSE
+			GetReg(r)
+		END;
+	END GetReg2;
  
 (*PROCEDURE MovConstToAddr *(; offset, size, r1, val: LONGINT);*)
 (*PROCEDURE InitArray (VAR obj: OSAB.Object);
@@ -951,7 +1057,7 @@ PROCEDURE MovVarToReg(VAR x:Item; r:LONGINT);
 		OIO.FWriteString(f, rname);
 	END MovVarToReg;
 
-PROCEDURE LoadReg(VAR x: Item; r: LONGINT); (* movq varname, %rxx *)
+PROCEDURE LoadReg(VAR x: Item; VAR r: LONGINT); (* movq varname, %rxx *)
 	VAR rname: OSAS.Ident;
 	BEGIN
 		
@@ -986,7 +1092,7 @@ PROCEDURE LoadParamToReg(base, offset, r: LONGINT; VAR x:Item);
 		OIO.FWriteString(f, rname);
 	END LoadParamToReg;
 
-PROCEDURE LoadConstToReg(val, r:LONGINT);
+(*PROCEDURE Load1ConstToReg(val, r:LONGINT);
 	VAR rname: OSAS.Ident;
 	BEGIN
 
@@ -996,52 +1102,61 @@ PROCEDURE LoadConstToReg(val, r:LONGINT);
 		Gen.Const(f, val);
 		Gen.WriteComma(f);
 		OIO.FWriteString(f, rname);
-	END LoadConstToReg;
+	END Load1ConstToReg;*)
 
 PROCEDURE load(VAR x: Item);
 	VAR r, offset, k: LONGINT;
+		t: BOOLEAN;
 	BEGIN
-
-	OIO.WriteString("in function load!!!! :(("); OIO.WriteLn();
-	IF (x.mode # OSAB.Reg) THEN
-		IF (x.mode = OSAB.Var) THEN
-			(* IF (x.b >= 0) THEN (?)*)
-			GetReg1(r, x); (* free register which contains x.r(i.e. base) and get new register to move x's value there *)
-			IF (x.r = rbp) THEN (* local var or par *)
-				IF (x.a < 0) THEN (* parameter *)
-					k:=x.a(*??? -4 ???*);
-					LoadParamToReg(rbp, k, r, x); (* movl/movsbl -offset(%rbp), %rxx *)
-				ELSIF x.a > 0 THEN (* local var *)
-					k:=x.a;
-					MovVarToReg(x, r);(*mov x.label, %rxx*)
+	(*IF(x.mode = OSAB.Reg) THEN t:= FALSE ELSE t:= TRUE END;*)
+	IF (x.mode # OSAB.Reg) THEN		
+		OIO.WriteString("in function load!!!! :(("); OIO.WriteLn();	
+		IF (x.mode # OSAB.Reg) THEN
+			IF (x.mode = OSAB.Var) THEN
+				IF (x.b >= 0) THEN 
+					GetReg1(r, x); (* free register which contains x.r(i.e. base) and get new register to move x's value there *)
+					IF (x.r = rbp) THEN (* local var or par *)
+						IF (x.a < 0) THEN (* parameter *)
+							k:=x.a(*??? -4 ???*);
+							LoadParamToReg(rbp, k, r, x); (* movl/movsbl -offset(%rbp), %rxx *)
+						ELSIF x.a > 0 THEN (* local var *)
+							k:=x.a;
+							MovVarToReg(x, r);(*mov x.label, %rxx*)
+						END;
+					ELSE 
+						LoadReg(x, r);
+						x.r:= r;
+						OIO.WriteString("added 14.05.2012 x.r=");
+						OIO.WriteLongInt(x.r);
+						OIO.WriteLn();
+					END;
+				ELSE
+					GetReg1(r, x);
+					LoadReg(x, r);
+				END;	
+			ELSIF (x.mode = OSAB.RegI) THEN	
+				(* *)
+			ELSIF (x.mode = RegX) THEN
+				(* *)
+			ELSIF (x.mode = OSAB.Const) THEN
+				IF (x.type.form <= OSAB.Set) THEN (* byte, bool, char, int real, set *)
+					GetReg(r);
+					MovConstToReg(x.a, r);
+				ELSIF (x.type.form = OSAB.Proc) THEN
+					GetReg1(r, x);
+					(* continue *);
+				ELSIF (x.type.form = OSAB.NilTyp) THEN
+					GetReg1(r,x);
+					MovConstToReg(0, r);
 				END;
-			ELSE 
-				LoadReg(x, r);
-				x.r:= r;
-			END;
-		ELSE
-			GetReg1(r, x);
-			LoadReg(x, r);
-		END;	
-	ELSIF (x.mode = OSAB.RegI) THEN	
-		(* *)
-	ELSIF (x.mode = RegX) THEN
-		(* *)
-	ELSIF (x.mode = OSAB.Const) THEN
-		IF (x.type.form <= OSAB.Set) THEN (* byte, bool, char, int real, set *)
-			LoadConstToReg(x.a, r);
-		ELSIF (x.type.form = OSAB.Proc) THEN
-			GetReg1(r, x);
-			(* continue *);
-		ELSIF (x.type.form = OSAB.NilTyp) THEN
-			GetReg1(r,x);
-			LoadConstToReg(0, r);
+				ELSIF (x.mode = CC) THEN
+				(* continue *)
+			
+			ELSE OSAS.Mark("illegal object (type?)"); END;
+			x.mode:= OSAB.Reg;
+			x.r:= r;
 		END;
-	ELSIF (x.mode = CC) THEN
-		(* continue *)
-	
-	ELSE OSAS.Mark("illegal object (type?)"); END;
-	
+	END;
 
 	END load;
   
@@ -1629,46 +1744,68 @@ PROCEDURE Index*(VAR x, y: Item; check: BOOLEAN);   (* x := x[y] *)
           x.a := x.a + y.a;
         ELSE
           load(x);
-          IF SHORT( y.a) >= 0 THEN 
-            AddConst(x, 10000H-y.a)
-          ELSE
-            AddConst(x, y.a)
-          END
+	  (*y.mode:= OSAB.Reg;*)
+	  AddConstToReg(y.a, x.r);
         END
       ELSIF x.mode = OSAB.Const THEN
         load(y);
-        IF SHORT(x.a) >=0 THEN
-          AddConst(y, 10000H-x.a)
-        ELSE
-          AddConst(y, x.a)
-        END;
+	AddConstToReg(x.a, y.r);
         x := y
-      ELSE (*x, y are all variables*)
-        load(x); load(y);  GetReg2(r, x, y);
-        IF x.r # r THEN
-          copyItem(r, x)
-        END;
-        PutAVR0(CPC+2H, r, y.r);
-        i := 1;
-        WHILE (i < y.type.size) DO
-          PutAVR0(CPC+12H, r+i, y.r+i);
-          i := i+1
-        END;
-        x.r := r
+      ELSIF (x.mode = OSAB.Reg) & (y.mode = OSAB.Reg) THEN
+      	AddRegToReg(y.r, x.r);
+	IF (y.type.form = OSAB.Real) THEN
+		RelRealReg(y.r);
+	ELSE
+		RelReg(y.r);
+	END;
+     ELSIF (y.mode = OSAB.Reg) & (x.mode = OSAB.Var) THEN
+     		AddMemToReg(x, y.r);
+		x.r:= y.r;
+		x.mode:= OSAB.Reg;
+      ELSE 	
+        load(x);
+	GetReg1(r, x);
+	AddMemToReg(y, x.r);
+	x.r:= r;
+	x.mode:= OSAB.Reg;
+	(*RelReg(y.r);*)
       END
     ELSE (*op=minus*)
       IF y.mode = OSAB.Const THEN
-        IF x.mode = OSAB.Const THEN x.a := x.a - y.a
+        IF x.mode = OSAB.Const THEN 
+		x.a := x.a - y.a
         ELSE
           load(x);
-          IF SHORT(y.a) >= 0 THEN
-            AddConst(x, y.a)
-          ELSE
-            AddConst(x, 10000H-y.a)
-          END
+	  SubRegWithConst(y.a, x.r);
         END
+      ELSIF (x.mode = OSAB.Const) THEN
+      	load(y);
+	IF (x.a >= 0) THEN
+		load(x);
+		IF(x.type.form = OSAB.Real) THEN
+			RelRealReg(x.r);
+		ELSE
+			RelReg(x.r);
+		END;
+		IF (x.a >=0) THEN
+			SubRegWithReg(y.r, x.r);
+		ELSE
+			SubRegWithReg(x.r, y.r);
+		END;
+		MovRegToReg(x.r, y.r);
+		x.r:= y.r
+	END;
+	x:= y;
+      ELSIF (y.mode = OSAB.Reg) THEN
+      	load(x);
+	IF(x.type.form = OSAB.Real) THEN
+		RelRealReg(y.r);
+	ELSE
+		RelReg(y.r);
+	END;
+	SubRegWithReg(y.r, x.r);
       ELSE (*x, y are all variables or constant-var*)
-        load(x); load(y); GetReg2(r, x, y);
+        (*load(x); load(y); GetReg2(r, x, y);
         IF x.r # r THEN
           copyItem(r, x)
         END;
@@ -1679,7 +1816,13 @@ PROCEDURE Index*(VAR x, y: Item; check: BOOLEAN);   (* x := x[y] *)
           i := i+1
         END;
         x.r := r 
-      END        
+      END *)
+       load(x);
+       GetReg1(r, x);
+       SubRegWithMem(y, x.r);
+       (*RelReg(x.r);
+       RelReg(y.r);*)
+      END;
     END    
   END AddOp;
 
@@ -1993,7 +2136,9 @@ PROCEDURE Store * (VAR x, y: Item); (*x:=y*)
 					MovConstToVar(y.a, x);
 				END;
 			ELSIF (y.mode = OSAB.Var) THEN
-				load(y); 
+				load(y);
+				MovRegToVar(y.r, x);
+			ELSIF (y.mode = OSAB.Reg) THEN
 				MovRegToVar(y.r, x);
 			END;
 		END;

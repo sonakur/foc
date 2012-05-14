@@ -158,5 +158,15 @@ PROCEDURE Init * (VAR f: OIO.File; modname: ARRAY OF CHAR);
 		OIO.FWriteLn(f);
 	END Init;
 
+PROCEDURE Add * (VAR f: OIO.File);
+	BEGIN
+		OIO.FWriteString(f, "addq ");
+	END Add;
+
+PROCEDURE Sub * (VAR f: OIO.File);
+	BEGIN
+		OIO.FWriteString(f, "subq ");
+	END Sub;
+
 BEGIN
 END Gen.

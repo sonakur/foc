@@ -341,7 +341,7 @@ MODULE OAVP0; (*N. Wirth 1.7.97 / 2.5.99 / 28.5.2007  Oberon for Strong Arm*)
   END term;
   
   PROCEDURE SimpleExpression(VAR x: OSAG.Item);
-    VAR y: OSAG.Item; op: INTEGER;
+    VAR y, tmp: OSAG.Item; op: INTEGER;
   BEGIN
     IF sym = OSAS.minus THEN OSAS.Get(sym); term(x);
       IF x.type.form IN {OSAB.Int, OSAB.Real, OSAB.Set} THEN OSAG.Neg(x) ELSE CheckInt(x) END
@@ -353,7 +353,7 @@ MODULE OAVP0; (*N. Wirth 1.7.97 / 2.5.99 / 28.5.2007  Oberon for Strong Arm*)
       IF op = OSAS.or THEN
        OSAG.Or1(x); CheckBool(x); term(y); CheckBool(y); OSAG.Or2(x, y)
       ELSIF x.type.form = OSAB.Int THEN term(y); CheckInt(y); OSAG.AddOp(op, x, y)
-      ELSIF x.type.form = OSAB.Real THEN CheckLeaf; term(y); CheckReal(y); OSAG.RealOp(op, x, y)
+      ELSIF x.type.form = OSAB.Real THEN CheckLeaf;tmp:= x; term(y); CheckReal(y); x:= tmp;OSAG.RealOp(op, x, y)
       ELSE CheckSet(x); term(y); CheckSet(y); OSAG.SetOp(op, x, y)
       END
     END
