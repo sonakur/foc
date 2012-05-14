@@ -1833,7 +1833,7 @@ PROCEDURE Index*(VAR x, y: Item; check: BOOLEAN);   (* x := x[y] *)
     RETURN m 
   END log;
 
-  PROCEDURE multiply(VAR x, c: Item);  (*c.a >= 2*)
+  (*PROCEDURE multiply(VAR x, c: Item);  (*c.a >= 2*)
     VAR i,  m, r: LONGINT;
   BEGIN 
     _GetReg(r, x.type.size, 0);
@@ -1863,7 +1863,49 @@ PROCEDURE Index*(VAR x, y: Item; check: BOOLEAN);   (* x := x[y] *)
     RelReg1(c.r, c.type.size);
     RelReg1(x.r, x.type.size);
     x.r := r;
-  END multiply;
+  END multiply;*)
+
+  PROCEDURE MulConstWithReg(a, r: LONGINT);
+  	VAR rname: OSAS.Ident;
+  	BEGIN
+		Gen.RegName(r, rname);
+		Gen.Mul(f);
+		Gen.Const(f, a);
+		Gen.WriteComma(f);
+		OIO.FWriteString(f, rname);
+		OIO.FWriteLn(f);
+	END MulConstWithReg;
+
+PROCEDURE MulMemWithReg(x: Item; r: LONGINT);
+  	VAR rname: OSAS.Ident;
+  	BEGIN
+		Gen.RegName(r, rname);
+		Gen.Mul(f);
+		OIO.FWriteString(f, x.label);
+		Gen.WriteComma(f);
+		OIO.FWriteString(f, rname);
+		OIO.FWriteLn(f);
+	END MulMemWithReg;
+
+  PROCEDURE MulRegWithReg(x, y: LONGINT);
+  	VAR xname, yname: OSAS.Ident;
+	BEGIN
+		Gen.RegName(x, xname);
+		Gen.RegName(y, yname);
+		Gen.Mul(f);
+		OIO.FWriteString(f, xname);
+		Gen.WriteComma(f);
+		OIO.FWriteString(f, yname);
+		OIO.FWriteLn(f);
+	END MulRegWithReg;
+
+  PROCEDURE multiply(VAR x, c: Item);  (*c.a >= 2*)
+  	VAR i, j, m, r: LONGINT;
+  	BEGIN
+     		GetReg1(r, x);
+     		MulConstWithReg (c.a, x.r);
+     		x.r := r;
+   	END multiply;   
 
 
   PROCEDURE^ SaveRegs*(VAR rs: SET);
@@ -1878,12 +1920,25 @@ PROCEDURE Index*(VAR x, y: Item; check: BOOLEAN);   (* x := x[y] *)
       ELSE x.a := x.a MOD y.a
       END
     ELSIF op = OSAS.times THEN
-      IF (x.mode = OSAB.Const) & (SHORT(x.a) >= 2) THEN
+      IF (x.mode = OSAB.Const) (*& (SHORT(x.a) >= 2)*) THEN
         load(y); multiply(y, x); x.mode := OSAB.Reg; x.r := y.r
-      ELSIF (y.mode = OSAB.Const) & (SHORT(y.a) >= 2) THEN
+      ELSIF (y.mode = OSAB.Const) (* & (SHORT(y.a) >= 2) *)THEN
         load(x); multiply(x, y)
+      ELSIF (y.mode = OSAB.Reg) & (x.mode = OSAB.Var) THEN
+	load(x);
+	GetReg1(r, x);
+	MulRegWithReg(y.r, x.r);
+	IF (y.type.form = OSAB.Real) THEN
+		RelRealReg(y.r)
+	ELSE
+		RelReg(y.r);
+	END;
       ELSE
-        load(x); load(y); _GetReg(r, x.type.size, 0); PutMul(r, x.r, y.r);  RelReg1(x.r, x.type.size); RelReg1(y.r, y.type.size); x.r := r
+        load(x);
+	GetReg1(r, x);
+	MulMemWithReg(y, x.r);
+	x.mode:= OSAB.Reg;
+	x.r:= r;	
       END
     ELSIF (op = OSAS.div) OR (op = OSAS.mod) THEN
       load(x); load(y);
@@ -1922,6 +1977,115 @@ PROCEDURE Index*(VAR x, y: Item; check: BOOLEAN);   (* x := x[y] *)
       x.mode := OSAB.Reg; x.r := r
     END;  
   END MulOp;
+
+(*PROCEDURE MulOp*(op: INTEGER; VAR x, y: Item);   (* x := x op y *)
+VAR n, r: LONGINT;
+BEGIN
+   IF (x.mode = OSAB.Const) & (y.mode = OSAB.Const) THEN
+      IF op = OSAS.times THEN x.a := x.a * y.a;
+      ELSIF y.a = 0 THEN OSAS.Mark("division by 0")
+      ELSIF op = OSAS.div THEN x.a := x.a DIV y.a
+      ELSE x.a := x.a MOD y.a
+      END
+   ELSE
+     IF op = OSAS.times THEN
+        IF (x.mode = OSAB.Const) (*& (x.a >= 2)*) THEN
+           load(y); multiply(y, x); x.mode := OSAB.Reg; x.r := y.r;
+        ELSIF (y.mode = OSAB.Const) (*& (y.a >= 2)*) THEN load(x); multiply(x, y);
+        ELSIF (x.mode = OSAB.Reg) & (y.mode = OSAB.Reg) THEN
+           MulRegs (y.r, x.r); Release (y.r);
+        ELSIF (x.mode = OSAB.RegI) & (y.mode = OSAB.RegI) THEN
+           IF x.type.size = 1 THEN
+              MovAdrToReg(x.r, x.r, 1);
+           ELSIF x.type.size >= 4 THEN
+              MovAdrToReg(x.r, x.r, 4);
+           END;
+           IF y.type.size = 1 THEN
+             MovAdrToReg(y.r, y.r, 1);
+           ELSIF y.type.size >=4 THEN
+              MovAdrToReg(y.r, y.r, 4);
+           END;
+           MulRegs(y.r, x.r); Release(y.r);
+	   x.mode := OSAB.Reg;
+        ELSIF x.mode = OSAB.RegI THEN
+           IF x.type.size = 1 THEN
+              MovAdrToReg(x.r, x.r, 1);
+           ELSIF x.type.size >= 4 THEN
+              MovAdrToReg(x.r, x.r, 4);
+           END;
+           x.mode := OSAB.Reg;
+           IF y.mode = OSAB.Const THEN
+              MulConstWithReg(y.a, x.r)
+           ELSIF y.mode = OSAB.Var THEN
+              MulMemToReg(y, x.r);
+           ELSIF y.mode = OSAB.Reg THEN
+              MulRegs(y.r, x.r)
+           END;
+        ELSIF y.mode = OSAB.RegI THEN
+           IF y.type.size = 1 THEN
+              MovAdrToReg(y.r, y.r, 1);
+           ELSIF y.type.size >= 4 THEN
+              MovAdrToReg(y.r, y.r, 4);
+           END;
+           y.mode := OSAB.Reg;
+           GetReg(r);
+           LoadParamToReg(EBP, x.a, r, x);
+           x.r := r;
+           x.mode := OSAB.Reg;
+           MulRegs(y.r, x.r);
+           Release(y.r);
+        ELSIF (y.mode = OSAB.Reg) & (x.mode = OSAB.Var) THEN
+           load(x); GetReg1(r, x.r);
+	    MulRegs (y.r, x.r); Release (y.r);
+        ELSE load(x);
+           GetReg1(r, x.r);
+           MulMemToReg (y, x.r);
+           x.mode := OSAB.Reg;
+           x.r := r;
+        END
+   ELSIF op = OSAS.div THEN
+      IF x.mode = OSAB.RegI THEN
+         IF x.type.size = 1 THEN
+            MovAdrToReg(x.r, x.r, 1);
+         ELSIF x.type.size >= 4 THEN
+            MovAdrToReg(x.r, x.r, 4);
+         END;
+         x.mode := OSAB.Reg; Release(x.r);
+      END;
+      IF y.mode = OSAB.RegI THEN
+         IF y.type.size = 1 THEN
+            MovAdrToReg(y.r, y.r, 1);
+         ELSIF y.type.size >=4 THEN
+            MovAdrToReg(y.r, y.r, 4);
+         END;
+         y.mode := OSAB.Reg; Release(y.r);
+      END;
+      divide (x, y);
+   ELSIF op = OSAS.mod THEN (*load(x);*)
+      IF x.mode = OSAB.RegI THEN
+         IF x.type.size = 1 THEN
+            MovAdrToReg(x.r, x.r, 1);
+         ELSIF x.type.size >= 4 THEN
+            MovAdrToReg(x.r, x.r, 4);
+         END;
+         x.mode := OSAB.Reg; Release(x.r);
+      END;
+      IF y.mode = OSAB.RegI THEN
+         IF y.type.size = 1 THEN
+		 MovAdrToReg(y.r, y.r, 1);
+         ELSIF y.type.size >=4 THEN
+            MovAdrToReg(y.r, y.r, 4);
+         END;
+         y.mode := OSAB.Reg; Release(y.r);
+      END;
+
+   modulus (x, y);
+   END
+END
+END MulOp;
+*)
+
+
 
   (* Code generation for REAL operators *)
 
